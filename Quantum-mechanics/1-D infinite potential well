@@ -1,0 +1,117 @@
+# interactive plots
+%matplotlib notebook
+
+# importing modules
+import numpy as np
+import matplotlib.pyplot as plt
+
+electron_mass = 9.109383702e-31 #electron mass (kg)
+h_bar = 1.054571817e-34 #h bar (J.s)
+electron_charge = 1.602176634e-19 #electron charge (C)
+
+a = 5e-11 #half width of the potential (m)
+def V(x):
+    '''This function returns the Potential for the well. The particle will never be
+    outside the well so the potential is zero'''
+    return 0.0
+
+def function(r,x,E,Potential):
+    '''Function for the Right Hand Side of the First Order Differentials
+    Inputs: r - a vector of omega and phi (radians), x - , E - the Energy (J)
+    Outputs: Array that contains the first derivatives of omega and phi'''
+    
+    psi = r[0]
+    phi = r[1]
+    
+    fpsi = phi
+    fphi = 2*electron_mass*(1/h_bar**2)*(Potential(x)-E)*psi
+    
+    return np.array([fpsi,fphi])
+
+def RungeKutta2d(r,x_points,function,E,Potential):
+    '''Fourth-order Runge-Kutta rewritten for two or more simultaneous equations
+    Inputs: r: array of values, one for each equation in the system
+            x_points: array of x values 
+            function: the function to use to solve the system
+    Outputs: [xpoints, ypoints]: solutions for the simultaneous equations'''
+    xpoints = [] # initialise empty arrays
+    ypoints = []
+    for t in x_points:
+        xpoints.append(r[0])
+        ypoints.append(r[1])
+
+        #application of runge kutta method as found in intro above
+        k1 = h*function(r,t,E,Potential)
+        k2 = h*function(r+0.5*k1, t+0.5*h,E,Potential)
+        k3 = h*function(r+0.5*k2, t+0.5*h,E,Potential)
+        k4 = h*function(r+k3, t+h,E,Potential)
+        r = r + (k1 + 2*k2 + 2*k3 + k4)/6
+        
+    xpoints.append(r[0])
+    ypoints.append(r[1])
+    return np.array([xpoints, ypoints]) # convert output to numpy array with 2 rows and N columns
+    xstart = -a #(m)
+xend = a #(m)
+N = 1000
+h = (2*a) / N 
+
+x_points=np.arange(xstart,xend,h) #initalise x value array
+
+r = np.array([0,1]) #defining initial conditions
+
+#implementing secant method
+
+def get_Analytical(n):
+    #analytical solution for ground state energy using Eq. (8)
+    E_n = (np.pi**2 * h_bar**2 * n**2) / (2 * electron_mass * (2*a)**2)
+    return E_n
+
+    
+def draw_Image(WaveFunction,ProbablityDensity):
+#creating second x array for plotting to match solution dimensions
+    x_points2 = np.arange(xstart,xend+h,h)
+    plt.figure(figsize=(10, 4))
+    plt.subplot(1,2,1)
+    plt.title('Wavefuction')
+    plt.plot(x_points2,WaveFunction,'r')
+    plt.subplot(1,2,2)
+    plt.title('ProbabilityDensity(Ψ^2)')
+    plt.plot(x_points2,(1/a)*np.square(ProbablityDensity),'g')
+    
+#finding new solutions until tolerance is met
+def get_Calculated(E1,E2,n):
+    wave1 = RungeKutta2d(r,x_points,function,E1,V)[0,N] #initial solutions
+    wave2 = RungeKutta2d(r,x_points,function,E2,V)[0,N]
+    tolerance = electron_charge / 1000 #method will stop once this tolerance is met
+    while abs(E2-E1) > tolerance:
+        E3 = E2 - wave2*(E2-E1)/(wave2-wave1)
+        E1 = E2
+        E2 = E3
+        wave1 = RungeKutta2d(r,x_points,function,E1,V)[0,N]
+        wave2 = RungeKutta2d(r,x_points,function,E2,V)[0,N]
+    #final solution using energy eigenvalue found with secant method
+    solutionE = RungeKutta2d(r,x_points,function,E3,V)
+    E_n = get_Analytical(n)
+    print("The Analytical Solution for the Ground State Energy is {0:0.9e} J".format(E_n))
+    print("The Solution for the Calculated Ground State Energy is {0:0.9e} J".format(E3))
+    draw_Image(solutionE[0],solutionE[0])
+    
+
+
+n = 1
+E1 = 3e-18 
+E2 = 8e-18
+# n = 2
+# E1 = 2e-17 
+# E2 = 3e-17
+# n = 3
+# E1 = 5e-17 
+# E2 = 6e-17
+# n = 4
+# E1 = 9e-17 
+# E2 = 10e-17
+# n = 5
+# E1 = 1e-16 
+# E2 = 2e-16
+    
+get_Calculated(E1,E2,n)
